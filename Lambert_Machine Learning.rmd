@@ -1,0 +1,84 @@
+---
+title: "Machine Learning Final"
+author: "Tim Lambert"
+date: "5/10/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Approach
+
+Using exercise data, we attempt to predict how a particular subject performed an exercise.  By downloading the data from the website, getting rid of blank or erroneous data, and separating it into a training and test set, training and cross-validation can be performed using the caret and RandomForest packages in R.
+
+```{r getting_cleaning_data}
+library(caret)
+library(randomForest)
+
+set.seed(10000)
+
+training.data <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
+                          na.strings=c("NA","#DIV/0!", ""))
+testing.data <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",
+                         na.strings=c("NA","#DIV/0!", ""))
+                       
+#Delete columns with zero
+training.data <- training.data[,colSums(is.na(training.data)) == 0]
+
+#Number of NA values
+sum(is.na(training.data))
+
+#Delete admin data
+training.data <- training.data[,-c(1:7)]
+
+#Create training and test set for cross validation
+index <- createDataPartition(training.data$classe, p = .75, list = FALSE)
+
+#Create training and test set
+training.data.train <- training.data[index,]
+training.data.test <- training.data[-index,]
+rm(index)
+
+
+```
+
+## Model One - Decision Tree
+
+First, a decision tree model is applied to the training set and a cross validation is applied to test set.  Then, a confusion matrix is used to see how well the model did.
+
+```{r dtm}
+#Decision Tree Model
+modfit1 <- train(data = training.data.train, classe ~ ., method = "rpart")
+
+#Decision Tree Confusion Matrix
+predict.modfit1 <- predict(modfit1, training.data.test)
+confusionMatrix(training.data.test$classe, predict.modfit1)
+```
+
+The decision tree model's accuracy is just shy of 50% meaning the out of sample error is just above 50%.
+
+##Random Forest Model
+
+Next a Random Forest is applied to the training data set.  Just as with the decision tree model, cross-validation is applied to test set and a confusion matrix used to see how well the model performed.
+
+```{r rfm}
+#Random Forest Model
+modfit2 <- randomForest(data = training.data.train, classe ~ .)
+
+#Random Forest Confusion Matrix
+predict.modfit2 <- predict(modfit2, training.data.test)
+confusionMatrix(training.data.test$classe, predict.modfit2)
+```
+
+The random forest did much better with an accuracy of 99.59% meaning the out of sample error is .41%.
+
+##20 observations
+
+Use the random forest model to predict the 20 observations.
+
+```{r test}
+#Predict the 20 from test data set
+predict(modfit2, testing.data)
+```
